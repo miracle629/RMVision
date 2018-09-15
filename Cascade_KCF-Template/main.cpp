@@ -87,9 +87,9 @@ Rect Template::getLocation()
 }
 
 
-void limitRect(Rect2d &location, Size sz)
+void limitRect(Rect &location, Size sz)
 {
-	Rect2d window(Point(0, 0), sz);
+	Rect window(Point(0, 0), sz);
 	location = location & window;
 }
 
@@ -97,10 +97,10 @@ void limitRect(Rect2d &location, Size sz)
 bool judge_color_rgb(Mat src);
 bool judge_color_hsv(Mat src);
 vector<Rect> color_filter(Mat frame, vector<Rect> boards, bool color_flag);	//color filter
-void save_location(Rect location, int frame_num, Mat frame);
-void save_board(vector<Rect> boards, int frame_num, Mat frame);
-vector<int> CalculateXYPixel(Rect location);
-bool rectA_intersect_rectB(cv::Rect2d rectA, cv::Rect2d rectB);
+//void save_location(Rect location, int frame_num, Mat frame);
+//void save_board(vector<Rect> boards, int frame_num, Mat frame);
+//vector<int> CalculateXYPixel(Rect location);
+bool rectA_intersect_rectB(cv::Rect rectA, cv::Rect rectB);
 
 int main(int argc, char * argv[])
 {
@@ -108,25 +108,26 @@ int main(int argc, char * argv[])
 	Rect2d location;
 	Rect searchWindow;
 	Mat search_frame;
-	Point2d searchWindowCenter;
-	Point2d VirtualLeftUp;
+	Point searchWindowCenter;
+	Point VirtualLeftUp;
 	int flag3;
 	int flag4;
 
 
-	Rect2d location1;
+	Rect location1;
+	Rect location2;
 	//VideoWriter output_dst("detectracker.avi", CV_FOURCC('M', 'J', 'P', 'G'), 23, Size(640, 480), 1);
 	//STAPLE_TRACKER staple;
 
-	// List of tracker types in OpenCV 3.2
+	// List of tracker types in OpenCV 3.3.1
 	// NOTE : GOTURN implementation is buggy and does not work.
 	string trackerTypes[6] = { "BOOSTING", "MIL", "KCF", "TLD","MEDIANFLOW", "GOTURN" };
 	// vector <string> trackerTypes(types, std::end(types));
 
-	// Create a tracker
+	// Create a Tracker
 	string trackerType = trackerTypes[2];
 
-	cv::Ptr<cv::Tracker> tracker;
+	Ptr<Tracker> tracker;
 	Template tracker1;
 
 	if (trackerType == "BOOSTING")
@@ -150,22 +151,20 @@ int main(int argc, char * argv[])
 		std::cout << "fail to open" << std::endl;
 		exit(0);
 	}
-	cv::String cascade_name = "cascade.xml";;
-	cv::CascadeClassifier detector;
+	String cascade_name = "cascade.xml";;
+	CascadeClassifier detector;
 	if (!detector.load(cascade_name))
 	{
 		printf("--(!)Error loading face cascade\n");
 		return -1;
 	};
 
-
 	int64 tic, toc;
 	double time = 0;
+	int frame_num = 0;
 	bool show_visualization = true;
 	int status = 0;     //0：没有目标，1：找到目标进行跟踪
-						//Mat frame;
-	int frame_num = 0;
-
+						
 	while (capture.read(frame))
 	{
 		if (frame.empty())
@@ -174,20 +173,15 @@ int main(int argc, char * argv[])
 			break;
 		}
 		frame_num++;
-		tic = cv::getTickCount();
+		tic = getTickCount();
 		if (status == 0)
 		{
-			//cout << "[debug] " << frame_num << ":" << " 没有目标" << endl;
-			std::vector<Rect> boards;
-			cv::Mat frame_gray;
-			cv::cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
+			vector<Rect> boards;
+			Mat frame_gray;
+			cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
 			detector.detectMultiScale(frame_gray, boards, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30), Size(150, 150));
 			if (boards.size() > 0)
 			{
-				//cout << "[debug]" << frame_num << ":" << "cascade找到" << boards.size() << "个目标" << endl;
-
-				cv::imshow("detectracker", frame);
-				//waitKey(0);
 				if (boards.size() == 1)
 				{
 					location = boards[0];
@@ -213,17 +207,13 @@ int main(int argc, char * argv[])
 				rectangle(frame, cvPoint(cvRound(location.x), cvRound(location.y)),
 					cvPoint(cvRound((location.x + location.width - 1)), cvRound((location.y + location.height - 1))),
 					Scalar(20, 20, 20), 3, 8, 0);
-
 				status = 1;
-				cout << "wow" << endl;
 			}
 		}
 		else if (status == 1)
 		{
-			cout << "h1" << endl;
 			location1 = tracker1.track(frame);
 			limitRect(location1, frame.size());
-			cout << "h2" << endl;
 			searchWindow.width = 150;
 			searchWindow.height = 150;
 			searchWindowCenter.x = location.x + location.width*0.5;
@@ -232,7 +222,6 @@ int main(int argc, char * argv[])
 			VirtualLeftUp.y = location.y + location.height*0.5 - searchWindow.height*0.5;
 			flag3 = 0;
 			flag4 = 0;
-			cout << "h3" << endl;
 			if (searchWindowCenter.x >= 75 && searchWindowCenter.x <= 565)
 			{
 				searchWindow.x = VirtualLeftUp.x;
@@ -269,26 +258,14 @@ int main(int argc, char * argv[])
 				location.y -= 330;
 				flag4 = 3;
 			}
-			cout << "flag3:" << flag3 << ",flag4" << flag4 << endl;
-			cout << "::" << searchWindowCenter.x << "::" << searchWindowCenter.y << endl;
-			cout << "::" << VirtualLeftUp.x << "::" << VirtualLeftUp.y << endl;
-			cout << "::" << searchWindow.x << "::" << searchWindow.y << endl;
-			cout << "::" << location.x << "::" << location.y << endl;
-
-			cout << "ok1" << endl;
+			
 			search_frame = frame(searchWindow);
-			cout << "ok2" << endl;
-
-
-			cout << "ok3" << endl;
 			imshow("search1", search_frame);
-
-
 			tracker->init(search_frame, location);
 
 
 			bool ok = tracker->update(search_frame, location);
-			cout << "::::" << ok << endl;
+
 			if (flag3 == 1)
 				location.x += searchWindow.x;
 			else if (flag3 == 3)
@@ -302,38 +279,33 @@ int main(int argc, char * argv[])
 				location.y += 330;
 			else
 				location.y += 0;
-			cout << "::" << location.x << "::" << location.y << endl;
-			//limitRect(location, frame.size());
+
 			if ((location.empty()) || (location1.empty()))
 			{
 				status = 0;
 				continue;
 			}
-			// if(frame_num % 3 == 0)
-			// {
-			//     Mat roi = frame(location);
-			//     imwrite("../data/" + to_string(frame_num) + ".jpg", roi);
-			// }
-			cout << "wow12" << endl;
-			//staple.tracker_staple_train(frame, false);
-			bool inc = rectA_intersect_rectB(location, location1);
+			location2.x = int(location.x);
+			location2.y = int(location.y);
+			location2.width = int(location.width);
+			location2.height = int(location.height);
+			bool inc = rectA_intersect_rectB(location2, location1);
 			if (inc == false)
 			{
+				//status = 0;
+				//continue;
+				
 				Mat frame_gray;
 				cvtColor(frame, frame_gray, COLOR_BGR2BGRA);
-				std::vector<Rect> boards;
+				vector<Rect> boards;
 				detector.detectMultiScale(frame_gray, boards, 1.1, 2,
 					0 | CASCADE_SCALE_IMAGE, Size(30, 30), Size(150, 150));
-				cout << "[debug] boards: " << boards.size() << endl;
-				cout << "gof ball" << endl;
 				if (boards.size() <= 0)
 				{
 					status = 0;
 				}
 				else if (boards.size() > 0)
 				{
-					cv::imshow("detectracker", frame);
-					//waitKey(0);
 					if (boards.size() == 1)
 					{
 						location = boards[0];
@@ -360,8 +332,8 @@ int main(int argc, char * argv[])
 						cvPoint(cvRound((location.x + location.width - 1)), cvRound((location.y + location.height - 1))),
 						Scalar(20, 20, 20), 3, 8, 0);
 					status = 1;
-					cout << "wow" << endl;
 				}
+				
 			}
 			else if (frame_num % 10 == 0)
 			{
@@ -370,21 +342,12 @@ int main(int argc, char * argv[])
 					std::vector<Rect> boards;
 					detector.detectMultiScale(frame_gray, boards, 1.1, 2,
 						0 | CASCADE_SCALE_IMAGE, Size(30, 30), Size(150, 150));
-					cout << "[debug] boards: " << boards.size() << endl;
-					cout << "gof ball" << endl;
 					if (boards.size() <= 0)
 					{
 						status = 0;
 					}
 					else if (boards.size() > 0)
 					{
-						//cout << "[debug]" << frame_num << ":" << "cascade找到" << boards.size() << "个目标" << endl;
-
-
-
-
-						cv::imshow("detectracker", frame);
-						//waitKey(0);
 						if (boards.size() == 1)
 						{
 							location = boards[0];
@@ -411,7 +374,6 @@ int main(int argc, char * argv[])
 							cvPoint(cvRound((location.x + location.width - 1)), cvRound((location.y + location.height - 1))),
 							Scalar(20, 20, 20), 3, 8, 0);
 						status = 1;
-						cout << "wow" << endl;
 					}
 				}
 			}
@@ -424,7 +386,7 @@ int main(int argc, char * argv[])
 					cv::Scalar(0, 255, 255), 2);
 				if (status == 1)
 					cv::rectangle(frame, location, cv::Scalar(0, 128, 255), 2);
-				cv::imshow("detectracker", frame);
+				imshow("detectracker", frame);
 				//output_dst << frame;
 
 				char key = cv::waitKey(10);
@@ -435,7 +397,7 @@ int main(int argc, char * argv[])
 
 		time = time / double(cv::getTickFrequency());
 		double fps = double(frame_num) / time;
-		std::cout << "fps:" << fps << std::endl;
+		cout << "fps:" << fps << std::endl;
 		cv::destroyAllWindows();
 
 		return 0;
@@ -463,7 +425,7 @@ bool judge_color_rgb(Mat src)
 				blue_count++;
 		}
 	}
-	cout << "[debug] " << "blue_count: " << blue_count << "\tred_count: " << red_count << endl;
+	//cout << "[debug] " << "blue_count: " << blue_count << "\tred_count: " << red_count << endl;
 	if ((red_count - blue_count) >= 50)
 		return true;
 	else
@@ -492,7 +454,7 @@ bool judge_color_hsv(Mat src)
 		}
 	}
 	cvtColor(src, src, CV_HSV2BGR);
-	cout << "[debug] " << "blue_count: " << blue_count << "\tred_count: " << red_count << endl;
+	//cout << "[debug] " << "blue_count: " << blue_count << "\tred_count: " << red_count << endl;
 	if ((red_count - blue_count) >= 50)
 		return true;
 	else
@@ -505,34 +467,21 @@ vector<Rect> color_filter(Mat frame, vector<Rect> boards, bool color_flag)	//col
 	for (int i = 0; i < boards.size(); i++)
 	{
 		Mat roi = frame(boards[i]);
-		//imshow("roi", roi);
-		//waitKey(0);
+		
 		bool flag = judge_color_rgb(roi);
 		if (flag == color_flag)
 			results.push_back(boards[i]);
 	}
-	//cout << results.size() << endl;
 	return results;
 }
 
 
-bool rectA_intersect_rectB(cv::Rect2d rectA, cv::Rect2d rectB)
+bool rectA_intersect_rectB(cv::Rect rectA, cv::Rect rectB)
 {
 	if (rectA.x > rectB.x + rectB.width) { return false; }
 	if (rectA.y > rectB.y + rectB.height) { return false; }
 	if ((rectA.x + rectA.width) < rectB.x) { return false; }
 	if ((rectA.y + rectA.height) < rectB.y) { return false; }
 
-	float colInt = min(rectA.x + rectA.width, rectB.x + rectB.width) - max(rectA.x, rectB.x);
-	float rowInt = min(rectA.y + rectA.height, rectB.y + rectB.height) - max(rectA.y, rectB.y);
-	float intersection = colInt * rowInt;
-	float areaA = rectA.width * rectA.height;
-	float areaB = rectB.width * rectB.height;
-	float intersectionPercent = intersection / (areaA + areaB - intersection);
-
-	if ((0 < intersectionPercent) && (intersectionPercent < 1) && (intersection != areaA) && (intersection != areaB))
-	{
-		return true;
-	}
-	return false;
+	return true;
 }
