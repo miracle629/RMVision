@@ -21,3 +21,6 @@ cascade算法在灰度图上使用，robomaster比赛装甲板有红蓝两种颜
 
 5.Cascade_Staple
 Staple跟踪实际是HOG特征的KCF在线学习和颜色特征的在线学习互补的跟踪算法，算法鲁棒速度也较快。但限制是目前只能在WINDOWS下使用，作者fork了一个Ubuntu下的Staple项目，使用fftw3和eigen进行ubuntu下的傅里叶变换和矩阵计算，但在tx2上编译有问题还未解决，此代码在windows下编译。
+
+6.Cascade_Speedup_Detect
+是单独的检测程序，涉及opencv常用加速方法cuda、opencl等在cascade上的应用，注意cuda的权文件与cpu版本的权文件不可混用。
